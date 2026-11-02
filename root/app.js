@@ -120,6 +120,8 @@ const Storage = (() => {
 
 
 const INVENTORY_FIELD_DEFS = [
+  { key: 'firstName',       labels: ['first name', 'firstname', 'imię'] },
+  { key: 'lastName',        labels: ['last name', 'lastname', 'surname', 'nazwisko'] },
   { key: 'categoryName',    labels: ['category name', 'category'] },
   { key: 'assignedTo',      labels: ['assigned to', 'user', 'employee'] },
   { key: 'dateChecked',     labels: ['date checked'] },
@@ -144,6 +146,33 @@ const INVENTORY_FIELD_DEFS = [
 ];
 
 const INVENTORY_EDITABLE_FIELDS = INVENTORY_FIELD_DEFS.map((def) => def.key);
+
+const COLUMN_CONFIG_KEY = 'inventory-visible-columns-v1';
+const BASE_COLUMN_KEYS = ['firstName', 'lastName', 'categoryName', 'serialNumber'];
+const COLUMN_LABELS = {
+  firstName: 'Imię', lastName: 'Nazwisko', categoryName: 'Wybrany sprzęt',
+  assignedTo: 'Użytkownik (stare wpisy)', dateChecked: 'Data spisu',
+  site: 'Oddział', brand: 'Marka', model: 'Model', ram: 'RAM', disk: 'Dysk',
+  processor: 'Procesor', operatingSystem: 'System operacyjny',
+  serialNumber: 'Numer seryjny / Service Tag', productKey: 'Klucz produktu',
+  assetNumber: 'Numer inwentarzowy', purchasedYear: 'Rok zakupu',
+  purchaseType: 'Typ zakupu', price: 'Cena', status: 'Status', warranty: 'Gwarancja',
+  location: 'Lokalizacja', account: 'Konto', comment: 'Uwagi',
+};
+let visibleColumnKeys = [];
+let customColumnDefs = [];
+
+function getColumnDefinition(key) {
+  const standard = INVENTORY_FIELD_DEFS.find((def) => def.key === key);
+  if (standard) return { key, label: COLUMN_LABELS[key] || key };
+  return customColumnDefs.find((def) => def.key === key) || null;
+}
+
+function getActiveColumnDefinitions() {
+  return [...BASE_COLUMN_KEYS, ...visibleColumnKeys]
+    .map(getColumnDefinition)
+    .filter(Boolean);
+}
 
 const INVENTORY_LABEL_TO_KEY = (() => {
   const map = {};
@@ -244,6 +273,16 @@ const DataStore = (() => {
   return {
     async init() {
       records = await Storage.loadRecords();
+      let migratedLegacyNames = false;
+      records.forEach((record) => {
+        if ((!record.firstName || !record.lastName) && record.assignedTo) {
+          const parts = String(record.assignedTo).trim().split(/\s+/);
+          if (!record.firstName) record.firstName = parts.shift() || '';
+          if (!record.lastName) record.lastName = parts.join(' ');
+          migratedLegacyNames = true;
+        }
+      });
+      if (migratedLegacyNames) Storage.saveRecords(records);
       nextId = records.reduce((max, r) => Math.max(max, r.id + 1), 1);
       return [...records];
     },
@@ -257,16 +296,21 @@ const DataStore = (() => {
 
       const inventory = parseFullInventoryMetadata(content);
       const hasInventory = Object.values(inventory).some((v) => v);
-      const assignedTo = document.getElementById('inventoryUser')?.value.trim() || '';
+      const firstName = document.getElementById('firstNameInput')?.value.trim() || '';
+      const lastName = document.getElementById('lastNameInput')?.value.trim() || '';
       const equipmentType = document.getElementById('equipmentType')?.value.trim() || '';
-      if (assignedTo) inventory.assignedTo = assignedTo;
-      if (equipmentType && !inventory.categoryName) inventory.categoryName = equipmentType;
+      if (firstName) inventory.firstName = firstName;
+      if (lastName) inventory.lastName = lastName;
+      if (firstName || lastName) inventory.assignedTo = [firstName, lastName].filter(Boolean).join(' ');
+      if (equipmentType) inventory.categoryName = equipmentType;
       if (!inventory.serialNumber) inventory.serialNumber = content.trim();
 
       const record = {
         id:          nextId++,
         content,
-        type:        hasInventory ? 'IT Asset' : (sourceFormat === 'Barcode' ? 'Barcode' : detectContentType(content)),
+      type:        ['QR Code', 'Barcode', 'Wpis ręczny'].includes(sourceFormat)
+          ? sourceFormat
+          : (hasInventory ? 'IT Asset' : detectContentType(content)),
         ...inventory,
         timestamp:   formatTimestamp(new Date(now)),
         timestampMs: now,
@@ -283,7 +327,8 @@ const DataStore = (() => {
 
     update(id, field, value) {
       const allowedFields = INVENTORY_EDITABLE_FIELDS;
-      if (!allowedFields.includes(field)) return null;
+      const isCustomField = customColumnDefs.some((def) => def.key === field);
+      if (!allowedFields.includes(field) && !isCustomField) return null;
 
       const record = records.find((r) => r.id === id);
       if (!record) return null;
@@ -536,10 +581,26 @@ const Exporter = (() => {
     { header: 'comment',          key: 'comment' },
   ];
 
+  const EXPORT_HEADERS = {
+    firstName: 'imię', lastName: 'nazwisko', categoryName: 'wybór_sprzętu',
+    serialNumber: 'SN', type: 'typ_kodu',
+  };
+
+  function selectedExportFields() {
+    return [
+      ...getActiveColumnDefinitions().map((def) => ({
+        header: EXPORT_HEADERS[def.key] || def.label,
+        key: def.key,
+      })),
+      { header: EXPORT_HEADERS.type, key: 'type' },
+    ];
+  }
+
   function buildCSV(records) {
-    const esc = (s) => `"${String(s || '').replace(/"/g, '""')}"`;
-    const header = CSV_TEMPLATE_FIELDS.map((f) => f.header);
-    const rows = records.map((r) => CSV_TEMPLATE_FIELDS.map((f) => esc(r[f.key])));
+    const esc = (s) => `"${String(s ?? '').replace(/"/g, '""')}"`;
+    const fields = selectedExportFields();
+    const header = fields.map((f) => f.header);
+    const rows = records.map((r) => fields.map((f) => esc(r[f.key])));
 
     const content = [header.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
     const filename = buildExportFilename('csv', records.length);
@@ -573,6 +634,7 @@ const Exporter = (() => {
 
   function buildPDF(records) {
     const { jsPDF } = window.jspdf;
+    const fields = [{ header: '#', key: 'id' }, ...selectedExportFields()];
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
     doc.setFillColor(8, 15, 37);
@@ -594,8 +656,8 @@ const Exporter = (() => {
 
     doc.autoTable({
       startY: 32,
-      head: [PDF_TEMPLATE_FIELDS.map((f) => f.header)],
-      body: records.map((r) => PDF_TEMPLATE_FIELDS.map((f) => r[f.key] || '')),
+      head: [fields.map((f) => f.header)],
+      body: records.map((r) => fields.map((f) => r[f.key] || '')),
       styles: {
         font: 'helvetica', fontSize: 6.5, cellPadding: 2,
         fillColor: [17, 34, 80], textColor: [245, 240, 233],
@@ -621,8 +683,8 @@ const Exporter = (() => {
   function buildJSON(records) {
     const payload = records.map((r) => {
       const obj = {};
-      INVENTORY_FIELD_DEFS.forEach((def) => { obj[def.key] = r[def.key] || ''; });
-      obj.timestamp = r.timestamp;
+      selectedExportFields().forEach((field) => { obj[field.header] = r[field.key] || ''; });
+      obj.timestamp = r.timestamp || '';
       return obj;
     });
     const content = JSON.stringify(payload, null, 2);
@@ -635,7 +697,7 @@ const Exporter = (() => {
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
     const rows = records.map((r) => {
-      const fields = INVENTORY_FIELD_DEFS
+      const fields = selectedExportFields()
         .map((def) => `    <${def.key}>${esc(r[def.key])}</${def.key}>`)
         .join('\n');
       return `  <record id="${r.id}">\n${fields}\n    <timestamp>${esc(r.timestamp)}</timestamp>\n  </record>`;
@@ -646,8 +708,9 @@ const Exporter = (() => {
   }
 
   function buildXLSX(records) {
-    const header = CSV_TEMPLATE_FIELDS.map((f) => f.header);
-    const rows = records.map((r) => CSV_TEMPLATE_FIELDS.map((f) => r[f.key] || ''));
+    const fields = selectedExportFields();
+    const header = fields.map((f) => f.header);
+    const rows = records.map((r) => fields.map((f) => r[f.key] || ''));
     const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Inventory');
@@ -726,7 +789,13 @@ const UIManager = (() => {
     resultsEmpty:    document.getElementById('resultsEmpty'),
     resultsTable:    document.getElementById('resultsTable'),
     tableBody:       document.getElementById('tableBody'),
+    tableHeaderRow:  document.getElementById('tableHeaderRow'),
     entryCount:      document.getElementById('entryCount'),
+    columnOptions:   document.getElementById('columnOptions'),
+    customColumnName: document.getElementById('customColumnName'),
+    addCustomColumnBtn: document.getElementById('addCustomColumnBtn'),
+    manualSerialNumber: document.getElementById('manualSerialNumber'),
+    addManualScanBtn: document.getElementById('addManualScanBtn'),
     clearAllBtn:     document.getElementById('clearAllBtn'),
     exportCsvBtn:    document.getElementById('exportCsvBtn'),
     exportPdfBtn:    document.getElementById('exportPdfBtn'),
@@ -851,14 +920,7 @@ const UIManager = (() => {
     idCell.title = record.content;
     tr.appendChild(idCell);
 
-    const typeTd = document.createElement('td');
-    const typeBadge = document.createElement('span');
-    typeBadge.className = `type-badge ${typeClass}`;
-    typeBadge.textContent = record.type;
-    typeTd.appendChild(typeBadge);
-    tr.appendChild(typeTd);
-
-    INVENTORY_EDITABLE_FIELDS.forEach((field) => {
+    getActiveColumnDefinitions().forEach(({ key: field }) => {
       const td = document.createElement('td');
       td.className = 'td-editable';
       td.contentEditable = 'true';
@@ -911,10 +973,12 @@ const UIManager = (() => {
       tr.appendChild(td);
     });
 
-    const tsTd = document.createElement('td');
-    tsTd.className = 'td-timestamp';
-    tsTd.textContent = record.timestamp;
-    tr.appendChild(tsTd);
+    const typeTd = document.createElement('td');
+    const typeBadge = document.createElement('span');
+    typeBadge.className = `type-badge ${typeClass}`;
+    typeBadge.textContent = record.type || 'Text';
+    typeTd.appendChild(typeBadge);
+    tr.appendChild(typeTd);
 
     const actionTd = document.createElement('td');
     const delBtn = document.createElement('button');
@@ -1076,6 +1140,136 @@ const App = (() => {
   const savedTheme = safeStorageGet('assetsnap-theme', 'dark');
   applyTheme(savedTheme === 'light' ? 'light' : 'dark');
 
+  function renderTableHeader() {
+    const row = els.tableHeaderRow;
+    if (!row) return;
+    row.replaceChildren();
+    const addHeader = (label) => {
+      const th = document.createElement('th');
+      th.textContent = label;
+      row.appendChild(th);
+    };
+    addHeader('#');
+    getActiveColumnDefinitions().forEach((def) => addHeader(def.label));
+    addHeader('Typ kodu');
+    addHeader('Akcja');
+  }
+
+  function appendRecordRow(record) {
+    addTableRow(
+      record,
+      (id) => {
+        DataStore.remove(id);
+        refreshTableVisibility(DataStore.count());
+      },
+      (id, field, value) => DataStore.update(id, field, value)
+    );
+  }
+
+  function renderAllRows() {
+    renderTableHeader();
+    els.tableBody.replaceChildren();
+    DataStore.getAll().forEach(appendRecordRow);
+    refreshTableVisibility(DataStore.count());
+  }
+
+  async function saveColumnConfiguration() {
+    await Storage.setPreference(COLUMN_CONFIG_KEY, JSON.stringify({
+      visibleColumnKeys,
+      customColumnDefs,
+    }));
+  }
+
+  function renderCustomColumnOptions() {
+    els.columnOptions.replaceChildren();
+    if (customColumnDefs.length === 0) {
+      const hint = document.createElement('p');
+      hint.className = 'column-settings-help';
+      hint.textContent = 'Nie dodano jeszcze własnych kolumn.';
+      els.columnOptions.appendChild(hint);
+      return;
+    }
+
+    customColumnDefs.forEach((def) => {
+      const label = document.createElement('label');
+      label.className = 'column-option';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = visibleColumnKeys.includes(def.key);
+      checkbox.addEventListener('change', async () => {
+        visibleColumnKeys = checkbox.checked
+          ? [...new Set([...visibleColumnKeys, def.key])]
+          : visibleColumnKeys.filter((key) => key !== def.key);
+        await saveColumnConfiguration();
+        renderAllRows();
+      });
+      const text = document.createElement('span');
+      text.textContent = def.label;
+      label.append(checkbox, text);
+      els.columnOptions.appendChild(label);
+    });
+  }
+
+  async function loadColumnConfiguration() {
+    const raw = await Storage.getPreference(COLUMN_CONFIG_KEY);
+    if (raw) {
+      try {
+        const config = JSON.parse(raw);
+        customColumnDefs = Array.isArray(config.customColumnDefs)
+          ? config.customColumnDefs.filter((def) => /^custom_[a-z0-9_]+$/i.test(def.key) && typeof def.label === 'string')
+          : [];
+        const customKeys = new Set(customColumnDefs.map((def) => def.key));
+        visibleColumnKeys = Array.isArray(config.visibleColumnKeys)
+          ? [...new Set(config.visibleColumnKeys.filter((key) => customKeys.has(key)))]
+          : [];
+      } catch (error) {
+        console.warn('Could not restore column preferences:', error);
+      }
+    }
+    renderCustomColumnOptions();
+    renderTableHeader();
+  }
+
+  async function addCustomColumn() {
+    const label = els.customColumnName.value.trim();
+    if (!label) {
+      showToast('Wpisz nazwę nowej kolumny.', 'error');
+      return;
+    }
+    if (customColumnDefs.some((def) => def.label.toLocaleLowerCase() === label.toLocaleLowerCase())) {
+      showToast('Kolumna o takiej nazwie już istnieje.', 'error');
+      return;
+    }
+    const key = `custom_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    customColumnDefs.push({ key, label });
+    visibleColumnKeys.push(key);
+    els.customColumnName.value = '';
+    renderCustomColumnOptions();
+    await saveColumnConfiguration();
+    renderAllRows();
+    showToast(`Dodano kolumnę „${label}”.`, 'success');
+  }
+
+  els.addCustomColumnBtn?.addEventListener('click', addCustomColumn);
+  els.customColumnName?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') addCustomColumn();
+  });
+  els.addManualScanBtn?.addEventListener('click', () => {
+    const input = els.manualSerialNumber;
+    const serial = input.value.trim();
+    if (!serial) {
+      showToast('Wpisz numer seryjny.', 'error');
+      return;
+    }
+    if (handleDecode(serial, 'Wpis ręczny')) {
+      input.value = '';
+      input.focus();
+    }
+  });
+  els.manualSerialNumber?.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') els.addManualScanBtn.click();
+  });
+
   if (els.themeToggle) {
     els.themeToggle.addEventListener('click', () => {
       const nextTheme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
@@ -1102,10 +1296,11 @@ const App = (() => {
   function handleDecode(text, sourceFormat) {
     if (typeof text !== 'string' || !text.trim()) return null;
 
-    const userInput = document.getElementById('inventoryUser');
+    const firstNameInput = document.getElementById('firstNameInput');
+    const lastNameInput = document.getElementById('lastNameInput');
     const typeInput = document.getElementById('equipmentType');
-    if (!userInput?.value.trim() || !typeInput?.value.trim()) {
-      showToast('Najpierw wpisz imię i nazwisko oraz wybierz rodzaj sprzętu.', 'error');
+    if (!firstNameInput?.value.trim() || !lastNameInput?.value.trim() || !typeInput?.value.trim()) {
+      showToast('Najpierw wpisz imię i nazwisko oraz wybierz sprzęt.', 'error');
       return null;
     }
 
@@ -1117,20 +1312,11 @@ const App = (() => {
 
     triggerScanFlash();
 
-      addTableRow(
-        record,
-        (id) => {
-          DataStore.remove(id);
-          refreshTableVisibility(DataStore.count());
-        },
-        (id, field, value) => {
-          DataStore.update(id, field, value);
-        }
-      );
+    appendRecordRow(record);
     refreshTableVisibility(DataStore.count());
 
-    setStatus('success', `Decoded: ${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`);
-    showToast(`QR scanned: ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`, 'success');
+    setStatus('success', `${sourceFormat || 'Kod'}: ${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`);
+    showToast(`${sourceFormat === 'Wpis ręczny' ? 'Dodano SN' : `Zeskanowano ${sourceFormat || 'kod'}`}: ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`, 'success');
 
     // Briefly flash the status back to scanning after 2s if in camera mode
     if (els.tabCameraMode.classList.contains('active') && els.startBtn.disabled) {
@@ -1460,20 +1646,10 @@ const App = (() => {
   // ── Initial UI State / Restore Previous Session ─────────────────────
   (async () => {
     setStatus('', 'Loading saved scans…');
+    await loadColumnConfiguration();
     const restored = await DataStore.init();
 
-    restored.forEach((record) => {
-      addTableRow(
-        record,
-        (id) => {
-          DataStore.remove(id);
-          refreshTableVisibility(DataStore.count());
-        },
-        (id, field, value) => {
-          DataStore.update(id, field, value);
-        }
-      );
-    });
+    restored.forEach(appendRecordRow);
 
     refreshTableVisibility(DataStore.count());
     setStatus('', 'Ready');

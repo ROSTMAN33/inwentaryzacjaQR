@@ -796,6 +796,7 @@ const UIManager = (() => {
     addCustomColumnBtn: document.getElementById('addCustomColumnBtn'),
     manualSerialNumber: document.getElementById('manualSerialNumber'),
     addManualScanBtn: document.getElementById('addManualScanBtn'),
+    newEmployeeBtn: document.getElementById('newEmployeeBtn'),
     clearAllBtn:     document.getElementById('clearAllBtn'),
     exportCsvBtn:    document.getElementById('exportCsvBtn'),
     exportPdfBtn:    document.getElementById('exportPdfBtn'),
@@ -1268,6 +1269,18 @@ const App = (() => {
   });
   els.manualSerialNumber?.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') els.addManualScanBtn.click();
+  });
+  els.newEmployeeBtn?.addEventListener('click', () => {
+    QRScanner.stop();
+    showCamera(false);
+    setButtonState(false);
+    document.getElementById('firstNameInput').value = '';
+    document.getElementById('lastNameInput').value = '';
+    document.getElementById('equipmentType').value = '';
+    els.manualSerialNumber.value = '';
+    setStatus('', 'Ready');
+    document.getElementById('firstNameInput').focus();
+    showToast('Formularz wyczyszczony. Zapisane pozycje pozostały w spisie.', 'info');
   });
 
   if (els.themeToggle) {

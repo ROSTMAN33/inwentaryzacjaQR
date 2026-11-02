@@ -154,7 +154,7 @@ const COLUMN_LABELS = {
   assignedTo: 'Użytkownik (stare wpisy)', dateChecked: 'Data spisu',
   site: 'Oddział', brand: 'Marka', model: 'Model', ram: 'RAM', disk: 'Dysk',
   processor: 'Procesor', operatingSystem: 'System operacyjny',
-  serialNumber: 'Numer seryjny / Service Tag', productKey: 'Klucz produktu',
+  serialNumber: 'SN', productKey: 'Klucz produktu',
   assetNumber: 'Numer inwentarzowy', purchasedYear: 'Rok zakupu',
   purchaseType: 'Typ zakupu', price: 'Cena', status: 'Status', warranty: 'Gwarancja',
   location: 'Lokalizacja', account: 'Konto', comment: 'Uwagi',

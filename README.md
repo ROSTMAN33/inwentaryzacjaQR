@@ -1,4 +1,3 @@
-Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 # Inwentaryzacja QR — spis sprzętu na Androidzie
 
 Prosta aplikacja Android do spisu wyposażenia przypisanego do użytkowników. Wpisz imię i nazwisko, wybierz rodzaj sprzętu (np. komputer albo monitor), a następnie skanuj kody QR lub kreskowe z numerami seryjnymi kolejnych urządzeń. Każdy odczyt zapisuje się jako osobna pozycja z osobą, typem sprzętu i numerem seryjnym.
@@ -27,7 +26,7 @@ Poniższe grafiki pokazują przykładowy układ ekranu na telefonie. To makiety 
 
 ## Projekt i budowanie APK
 
-Źródło aplikacji oraz projekt Android Studio są w [pakiecie źródłowym](source/spis-sprzetu-zrodla-android.zip).
+Interfejs i skaner są też dostępne do przeglądania w katalogu `root/`. Kompletny projekt Android Studio i wszystkie źródła można pobrać jako [pakiet źródłowy](source/spis-sprzetu-zrodla-android.zip).
 
 Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
 

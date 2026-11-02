@@ -964,6 +964,7 @@ tbody tr:hover { background: var(--surface-hover); }
 .type-phone { background: rgba(155, 142, 196, 0.12);  color: var(--accent-purple); }
 .type-other { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
 .type-barcode { background: rgba(196, 140, 102, 0.12); color: var(--accent-pdf); }
+.type-qr-code, .type-wpis-ręczny { background: rgba(60, 80, 125, 0.2); color: var(--quicksand); }
 
 body[data-theme="light"] .type-text  { color: var(--sapphire); }
 body[data-theme="light"] .type-email { color: var(--sapphire); }
@@ -1262,3 +1263,19 @@ body[data-theme="light"] .permission-card {
   color: inherit; font: inherit;
 }
 .inventory-session-form select option { color: #111; }
+.column-settings {
+  border: 1px solid var(--border-glow);
+  border-radius: 10px;
+  padding: 12px;
+  background: rgba(17, 34, 80, .42);
+}
+.column-settings summary { cursor: pointer; font-weight: 700; color: var(--quicksand); }
+.column-settings-help { margin: 8px 0 10px !important; font-size: .82rem !important; }
+.column-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 6px 12px; }
+.column-option { display: flex; align-items: center; gap: 8px; font-size: .82rem !important; font-weight: 500 !important; cursor: pointer; }
+.column-option input[type="checkbox"] { width: 18px; min-height: 18px; height: 18px; margin: 0; accent-color: var(--quicksand); }
+.custom-column-form { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.custom-column-controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 5px; }
+.custom-column-controls input { min-height: 42px; }
+.custom-column-controls .btn { min-height: 42px; white-space: nowrap; }
+@media (max-width: 520px) { .custom-column-controls { grid-template-columns: 1fr; } }

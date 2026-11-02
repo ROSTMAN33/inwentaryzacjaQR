@@ -69,10 +69,12 @@
     <section class="card scanner-card" id="scannerSection">
       <div class="inventory-session-form">
         <h2>Nowy spis sprzętu</h2>
-        <p>Wpisz osobę i rodzaj sprzętu, a następnie skanuj numery seryjne kolejnych urządzeń.</p>
-        <label for="inventoryUser">Imię i nazwisko użytkownika</label>
-        <input id="inventoryUser" type="text" autocomplete="name" placeholder="np. Jan Kowalski" />
-        <label for="equipmentType">Rodzaj sprzętu</label>
+        <p>Wpisz imię i nazwisko, wybierz sprzęt, a potem skanuj jego numer seryjny.</p>
+        <label for="firstNameInput">Imię</label>
+        <input id="firstNameInput" type="text" autocomplete="given-name" placeholder="np. Jan" />
+        <label for="lastNameInput">Nazwisko</label>
+        <input id="lastNameInput" type="text" autocomplete="family-name" placeholder="np. Kowalski" />
+        <label for="equipmentType">Wybór sprzętu</label>
         <select id="equipmentType">
           <option value="">Wybierz rodzaj sprzętu</option>
           <option>Komputer</option>
@@ -82,6 +84,23 @@
           <option>Drukarka</option>
           <option>Inne</option>
         </select>
+        <label for="manualSerialNumber">Numer seryjny (wpis ręczny, jeśli skan nie działa)</label>
+        <div class="custom-column-controls">
+          <input id="manualSerialNumber" type="text" autocomplete="off" placeholder="Wpisz SN" />
+          <button class="btn btn-sm" id="addManualScanBtn" type="button">Dodaj ręcznie</button>
+        </div>
+        <details class="column-settings" id="columnSettings">
+          <summary>Dodatkowe kolumny tabeli i eksportu</summary>
+          <p class="column-settings-help">Podstawowe pola: imię, nazwisko, wybór sprzętu i SN. Dodaj tylko te własne kolumny, których potrzebujesz; ich komórki uzupełnisz po skanowaniu.</p>
+          <div class="column-options" id="columnOptions"></div>
+          <div class="custom-column-form">
+            <label for="customColumnName">Nowa kolumna</label>
+            <div class="custom-column-controls">
+              <input id="customColumnName" type="text" maxlength="40" placeholder="np. Service Tag" />
+              <button class="btn btn-sm" id="addCustomColumnBtn" type="button">Dodaj kolumnę</button>
+            </div>
+          </div>
+        </details>
       </div>
       <div class="card-header-bar">
         <div class="card-label">
@@ -214,32 +233,14 @@
         <div class="table-scroll">
           <table id="dataTable">
             <thead>
-              <tr>
+              <tr id="tableHeaderRow">
                 <th>#</th>
-                <th>Type</th>
-                <th>Category</th>
-                <th>Assigned To</th>
-                <th>Date Checked</th>
-                <th>Site</th>
-                <th>Brand</th>
-                <th>Model</th>
-                <th>RAM</th>
-                <th>Disk</th>
-                <th>Processor</th>
-                <th>OS</th>
-                <th>Serial Number</th>
-                <th>Product Key</th>
-                <th>Asset Number</th>
-                <th>Purchased Year</th>
-                <th>Purchase Type</th>
-                <th>Price</th>
-                <th>Status</th>
-                <th>Warranty</th>
-                <th>Location</th>
-                <th>Account</th>
-                <th>Comment</th>
-                <th>Timestamp</th>
-                <th>Action</th>
+                <th>Imię</th>
+                <th>Nazwisko</th>
+                <th>Wybrany sprzęt</th>
+                <th>SN</th>
+                <th>Typ kodu</th>
+                <th>Akcja</th>
               </tr>
             </thead>
             <tbody id="tableBody"></tbody>

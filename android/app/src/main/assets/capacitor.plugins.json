@@ -1,0 +1,10 @@
+[
+	{
+		"pkg": "@capacitor/preferences",
+		"classpath": "com.capacitorjs.plugins.preferences.PreferencesPlugin"
+	},
+	{
+		"pkg": "@capgo/capacitor-file-sharer",
+		"classpath": "app.capgo.filesharer.FileSharerPlugin"
+	}
+]

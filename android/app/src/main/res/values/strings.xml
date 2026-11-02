@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Spis Sprzętu</string>
+    <string name="title_activity_main">Spis Sprzętu</string>
+    <string name="package_name">pl.inwentaryzacja.sprzetu</string>
+    <string name="custom_url_scheme">pl.inwentaryzacja.sprzetu</string>
+</resources>

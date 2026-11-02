@@ -1,0 +1,8 @@
+{
+	"appId": "pl.inwentaryzacja.sprzetu",
+	"appName": "Spis Sprzętu",
+	"webDir": "root",
+	"server": {
+		"androidScheme": "https"
+	}
+}

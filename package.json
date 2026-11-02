@@ -1,3 +1,4 @@
+Attempting to perform the InitializeDefaultDrives operation on the 'FileSystem' provider failed.
 {
   "dependencies": {
     "@capacitor/android": "^8.5.0",
@@ -14,7 +15,7 @@
   },
   "name": "qr-scanner",
   "version": "1.0.0",
-  "description": "",
+  "description": "Polskojęzyczna aplikacja Android do inwentaryzacji sprzętu z QR, kodami kreskowymi oraz eksportem CSV i XLSX.",
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -24,3 +25,4 @@
   "license": "MIT",
   "type": "commonjs"
 }
+

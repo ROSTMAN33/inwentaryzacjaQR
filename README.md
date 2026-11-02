@@ -26,7 +26,7 @@ Poniższe podglądy w formacie JPG pokazują przykładowy układ ekranu na telef
 
 ## Projekt i budowanie APK
 
-Interfejs i skaner są też dostępne do przeglądania w katalogu `root/`. Kompletny projekt Android Studio i wszystkie źródła można pobrać jako [pakiet źródłowy](source/spis-sprzetu-zrodla-android.zip).
+Interfejs i skaner są też dostępne do przeglądania w katalogu `root/`. Kompletny projekt Android Studio i wszystkie źródła można pobrać jako [pakiet źródłowy](source/spis-sprzetu-zrodla-android.zip). Manifest Androida deklaruje użycie aparatu; system powinien poprosić o dostęp przy pierwszym uruchomieniu skanowania.
 
 Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
 
@@ -38,7 +38,7 @@ Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
 
 ## Status sprawdzenia
 
-APK debug został zbudowany pomyślnie przez Gradle. Nie wykonano testu kamery na fizycznym telefonie ani na emulatorze; przed użyciem produkcyjnym sprawdź skanowanie na docelowym urządzeniu.
+Poprawiony APK debug został zbudowany przez Gradle, a jego manifest zawiera uprawnienie CAMERA. Nie wykonano testu skanowania na fizycznym telefonie ani działającym emulatorze; przed użyciem sprawdź kamerę na docelowym urządzeniu.
 
 ## Licencja i pochodzenie
 

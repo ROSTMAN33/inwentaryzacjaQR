@@ -18,23 +18,23 @@ CSV zawiera osobne kolumny dla rodzaju sprzętu, użytkownika i numeru seryjnego
 
 ## Podgląd interfejsu
 
-Poniższe grafiki pokazują przykładowy układ ekranu na telefonie. To makiety interfejsu, nie zrzuty z uruchomionego urządzenia.
+Poniższe podglądy w formacie JPG pokazują przykładowy układ ekranu na telefonie. To makiety interfejsu, nie zrzuty z uruchomionego urządzenia.
 
-![Formularz spisu](screenshots/podglad-formularza.svg)
+![Formularz spisu — makieta](screenshots/podglad-formularza.jpg)
 
-![Lista zeskanowanych urządzeń](screenshots/podglad-listy.svg)
+![Lista zeskanowanych urządzeń — makieta](screenshots/podglad-listy.jpg)
 
-## Budowanie APK
+## Projekt i budowanie APK
 
-Repo zawiera źródła interfejsu (katalog root/) oraz projekt Android Studio (katalog android/). Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
+Interfejs i skaner są też dostępne do przeglądania w katalogu `root/`. Kompletny projekt Android Studio i wszystkie źródła można pobrać jako [pakiet źródłowy](source/spis-sprzetu-zrodla-android.zip).
 
-1. Sklonuj repozytorium lub pobierz ZIP z GitHuba.
-2. W katalogu głównym projektu uruchom npm install.
-3. Wykonaj npx cap sync android, aby skopiować zasoby aplikacji do projektu Android.
-4. W katalogu android uruchom gradlew.bat assembleDebug albo otwórz ten katalog w Android Studio.
-5. APK debug znajdziesz w android/app/build/outputs/apk/debug/app-debug.apk.
+Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
 
-Kompletny pakiet źródłowy jest też dostępny w [source/spis-sprzetu-zrodla-android.zip](source/spis-sprzetu-zrodla-android.zip).
+1. Rozpakuj pakiet źródłowy.
+2. Uruchom `npm install` w katalogu projektu.
+3. Wykonaj `npx cap sync android`.
+4. Otwórz katalog `android` w Android Studio albo w nim uruchom `gradlew.bat assembleDebug`.
+5. APK debug znajdziesz w `android/app/build/outputs/apk/debug/app-debug.apk`.
 
 ## Status sprawdzenia
 

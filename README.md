@@ -8,7 +8,8 @@ Aplikacja Android do inwentaryzacji wyposażenia przypisanego do pracowników. F
 2. Wybierz sprzęt, np. komputer albo monitor.
 3. Zeskanuj QR lub kod kreskowy z numerem seryjnym.
 4. Jeśli skanowanie nie zadziała, wpisz SN ręcznie i wybierz **Dodaj ręcznie**.
-5. Dodaj następnego pracownika lub kolejne urządzenie.
+5. Skanuj kolejne urządzenia tej samej osoby.
+6. Po przejściu do kolejnego pracownika wybierz **Nowy pracownik / wyczyść formularz**. Czyści pola formularza, ale zachowuje już zapisane pozycje.
 
 Aplikacja zapisuje typ odczytu na końcu tabeli: QR, kod kreskowy albo wpis ręczny. Wpisy można edytować bezpośrednio w tabeli. Dane są przechowywane lokalnie na telefonie.
 

@@ -1121,6 +1121,28 @@ body[data-theme="light"] .toast {
 /* ── UTILITY ─────────────────────────────────────────────────────────── */
 .hidden { display: none !important; }
 
+@media (max-width: 600px) {
+  .identity-fields { gap: 8px; }
+  .inventory-session-form { padding: 14px; gap: 8px; }
+  .viewport-container { aspect-ratio: 4 / 3; max-height: 52vh; }
+  .target-frame { width: 82%; height: 58%; }
+  .target-hint { max-width: calc(100% - 20px); white-space: normal; text-align: center; font-size: .72rem; }
+  .scanner-controls { display: grid; grid-template-columns: 1fr; }
+  .scanner-controls .btn { min-height: 50px; }
+  .camera-tools { display: grid; grid-template-columns: 1fr; }
+  .camera-tools > .btn { width: 100%; }
+  .recent-records { padding: 12px; }
+  .table-toolbar { align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .table-scroll { overflow: visible; border: 0; }
+  .table-scroll table { display: block; width: 100%; }
+  .table-scroll thead { display: none; }
+  .table-scroll tbody { display: grid; gap: 10px; }
+  .table-scroll tbody tr { display: grid; padding: 4px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-hover); }
+  .table-scroll tbody td { display: grid; grid-template-columns: minmax(82px, 36%) minmax(0, 1fr); gap: 10px; align-items: start; padding: 9px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+  .table-scroll tbody td::before { content: attr(data-label); color: var(--text-secondary); font-size: .72rem; font-weight: 700; }
+  .table-scroll tbody td:last-child { border-bottom: 0; }
+}
+
 
 /* ── PERMISSION MODAL ────────────────────────────────────────────────── */
 .permission-modal-overlay {
@@ -1263,6 +1285,32 @@ body[data-theme="light"] .permission-card {
   color: inherit; font: inherit;
 }
 .inventory-session-form select option { color: #111; }
+.identity-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.identity-field { display: grid; gap: 6px; min-width: 0; }
+.new-person-btn { min-height: 44px; }
+.inventory-session-form input:focus,
+.inventory-session-form select:focus { outline: 3px solid rgba(224, 197, 143, .3); border-color: var(--quicksand); }
+.camera-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: -4px 0 14px; }
+.camera-tools .btn { min-height: 44px; }
+.zoom-control { display: flex; align-items: center; gap: 10px; flex: 1 1 190px; min-height: 44px; padding: 5px 12px; border: 1px solid var(--border); border-radius: 12px; color: var(--text-secondary); font-size: .85rem; }
+.zoom-control input { flex: 1; min-width: 70px; accent-color: var(--quicksand); }
+.zoom-control output { min-width: 38px; color: var(--text-primary); font-weight: 700; }
+.recent-records { margin-top: 18px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,.025); }
+.recent-records-heading, .recent-record-top, .recent-record-footer { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.recent-records-heading { margin-bottom: 12px; }
+.recent-records-heading h3 { font-size: 1rem; }
+.recent-records-heading p { color: var(--text-secondary); font-size: .8rem; }
+.recent-count { min-width: 34px; padding: 2px 9px; border-radius: 999px; text-align: center; font-weight: 700; color: var(--text-primary); background: var(--surface-hover); }
+.recent-record-list { display: grid; gap: 8px; }
+.recent-record { min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-hover); }
+.recent-record-top { justify-content: flex-start; flex-wrap: wrap; }
+.recent-record-top strong { font-size: .94rem; }
+.recent-equipment { color: var(--text-secondary); font-size: .8rem; }
+.recent-serial { margin: 7px 0; padding: 7px 9px; border-radius: 8px; background: rgba(0,0,0,.12); color: var(--text-primary); font: 700 .95rem/1.35 ui-monospace, SFMono-Regular, Consolas, monospace; overflow-wrap: anywhere; }
+.recent-extra-fields { display: grid; gap: 3px; color: var(--text-secondary); font-size: .78rem; }
+.recent-record-footer { margin-top: 7px; color: var(--text-muted); font-size: .75rem; }
+.recent-edit-link { border: 0; background: transparent; color: var(--quicksand); font: inherit; font-weight: 700; padding: 5px 8px; cursor: pointer; }
+.recent-all-btn { margin-top: 10px; min-height: 42px; }
 .column-settings {
   border: 1px solid var(--border-glow);
   border-radius: 10px;

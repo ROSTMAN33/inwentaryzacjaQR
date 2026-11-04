@@ -395,7 +395,19 @@ const BarcodeReader = (() => {
     console.warn = () => {};
 
     try {
-      const luminanceSource = new ZXing.RGBLuminanceSource(imageData.data, imageData.width, imageData.height);
+      // ImageData.data is RGBA (4 bytes per pixel), but RGBLuminanceSource
+      // expects one luminance value per pixel or packed 32-bit pixels. Passing
+      // the RGBA byte array directly makes it interpret the first quarter of
+      // the frame as unrelated pixels, which prevents 1D barcode decoding.
+      const luminance = new Uint8ClampedArray(imageData.width * imageData.height);
+      for (let pixel = 0, source = 0; pixel < luminance.length; pixel += 1, source += 4) {
+        luminance[pixel] = Math.round(
+          imageData.data[source] * 0.299 +
+          imageData.data[source + 1] * 0.587 +
+          imageData.data[source + 2] * 0.114
+        );
+      }
+      const luminanceSource = new ZXing.RGBLuminanceSource(luminance, imageData.width, imageData.height);
       const binaryBitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(luminanceSource));
       const result = r.decode(binaryBitmap);
       return result ? result.getText() : null;
@@ -415,6 +427,9 @@ const QRScanner = (() => {
   let animFrameId = null;
   let scanning    = false;
   let onDecodeCb  = null; 
+  let activeTrack = null;
+  let controlsInfo = { torch: false, zoom: null };
+  let torchEnabled = false;
 
   const video  = document.getElementById('cameraVideo');
   const canvas = document.getElementById('qrCanvas');
@@ -431,15 +446,31 @@ const QRScanner = (() => {
       stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: 'environment' },
-          width:  { ideal: 1280 },
-          height: { ideal: 720 },
+          width:  { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+          advanced: [{ focusMode: 'continuous' }],
         },
         audio: false,
       });
       video.srcObject = stream;
       await video.play();
+      activeTrack = stream.getVideoTracks()[0] || null;
+      controlsInfo = { torch: false, zoom: null };
+      torchEnabled = false;
+      if (activeTrack?.getCapabilities) {
+        const capabilities = activeTrack.getCapabilities();
+        if (Array.isArray(capabilities.focusMode) && capabilities.focusMode.includes('continuous')) {
+          activeTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+        }
+        controlsInfo.torch = capabilities.torch === true;
+        if (capabilities.zoom && Number.isFinite(capabilities.zoom.max) && capabilities.zoom.max > capabilities.zoom.min) {
+          controlsInfo.zoom = { min: capabilities.zoom.min, max: capabilities.zoom.max, step: capabilities.zoom.step || 0.1, value: activeTrack.getSettings?.().zoom || capabilities.zoom.min };
+        }
+      }
       scanning = true;
       _loop();
+      return { ...controlsInfo, torchEnabled };
     } catch (err) {
       // On Android, the very first permission grant can resolve a beat
       // after the WebView reports it. Auto-retry once instead of making
@@ -463,8 +494,28 @@ const QRScanner = (() => {
       stream.getTracks().forEach((t) => t.stop());
       stream = null;
     }
+    activeTrack = null;
+    controlsInfo = { torch: false, zoom: null };
+    torchEnabled = false;
     video.srcObject = null;
     video.load();
+  }
+
+  function getControls() { return { ...controlsInfo, torchEnabled }; }
+
+  async function setTorch(enabled) {
+    if (!activeTrack || !controlsInfo.torch) return false;
+    await activeTrack.applyConstraints({ advanced: [{ torch: Boolean(enabled) }] });
+    torchEnabled = Boolean(enabled);
+    return true;
+  }
+
+  async function setZoom(value) {
+    if (!activeTrack || !controlsInfo.zoom) return false;
+    const zoom = Math.max(controlsInfo.zoom.min, Math.min(controlsInfo.zoom.max, Number(value)));
+    await activeTrack.applyConstraints({ advanced: [{ zoom }] });
+    controlsInfo.zoom.value = zoom;
+    return true;
   }
 
   /** Internal: requestAnimationFrame decode loop. */
@@ -479,21 +530,19 @@ const QRScanner = (() => {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code      = jsQR(imageData.data, imageData.width, imageData.height, {
-        inversionAttempts: frameCount % 5 === 0 ? 'attemptBoth' : 'dontInvert',
-      });
-
-      if (code && typeof onDecodeCb === 'function') {
-        onDecodeCb(code.data, 'QR Code');
+      // Alternate the decoders: each gets a fresh frame at about 15 fps on a
+      // 30 fps camera, keeping the phone responsive while checking barcodes
+      // more often than the old every-third-frame schedule.
+      if (frameCount % 2 === 0) {
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: frameCount % 10 === 0 ? 'attemptBoth' : 'dontInvert',
+        });
+        if (code && typeof onDecodeCb === 'function') onDecodeCb(code.data, 'QR Code');
       } else {
-        frameCount++;
-        if (frameCount % 3 === 0) { // throttle ZXing to every 3rd frame to save CPU
-          const barcodeText = BarcodeReader.decode(imageData);
-          if (barcodeText && typeof onDecodeCb === 'function') {
-            onDecodeCb(barcodeText, 'Barcode');
-          }
-        }
+        const barcodeText = BarcodeReader.decode(imageData);
+        if (barcodeText && typeof onDecodeCb === 'function') onDecodeCb(barcodeText, 'Barcode');
       }
+      frameCount += 1;
     }
 
     animFrameId = requestAnimationFrame(_loop);
@@ -551,7 +600,7 @@ function decodeFromFile(file, onDecode, onError) {
     reader.readAsDataURL(file);
   }
 
-  return { start, stop, decodeFromFile };
+  return { start, stop, decodeFromFile, getControls, setTorch, setZoom };
 })();
 
 
@@ -797,6 +846,15 @@ const UIManager = (() => {
     manualSerialNumber: document.getElementById('manualSerialNumber'),
     addManualScanBtn: document.getElementById('addManualScanBtn'),
     newEmployeeBtn: document.getElementById('newEmployeeBtn'),
+    cameraTools: document.getElementById('cameraTools'),
+    torchBtn: document.getElementById('torchBtn'),
+    zoomControl: document.getElementById('zoomControl'),
+    zoomSlider: document.getElementById('zoomSlider'),
+    zoomValue: document.getElementById('zoomValue'),
+    recentRecordsPanel: document.getElementById('recentRecordsPanel'),
+    recentRecordList: document.getElementById('recentRecordList'),
+    recentCount: document.getElementById('recentCount'),
+    showAllRecordsBtn: document.getElementById('showAllRecordsBtn'),
     clearAllBtn:     document.getElementById('clearAllBtn'),
     exportCsvBtn:    document.getElementById('exportCsvBtn'),
     exportPdfBtn:    document.getElementById('exportPdfBtn'),
@@ -878,7 +936,7 @@ const UIManager = (() => {
       els.galleryViewport.classList.add('hidden');
       els.startBtn.style.display = '';
       els.stopBtn.style.display = '';
-      document.getElementById('modeLabelText').textContent = 'Live Camera Viewport';
+      document.getElementById('modeLabelText').textContent = 'Podgląd aparatu';
       document.getElementById('statusBadge').classList.remove('hidden');
     } 
 
@@ -889,7 +947,7 @@ const UIManager = (() => {
       els.galleryViewport.classList.remove('hidden');
       els.startBtn.style.display = 'none';
       els.stopBtn.style.display = 'none';
-      document.getElementById('modeLabelText').textContent = 'Gallery Photo Viewport';
+      document.getElementById('modeLabelText').textContent = 'Skanuj ze zdjęcia';
       document.getElementById('statusBadge').classList.add('hidden');
     }
   }
@@ -919,14 +977,16 @@ const UIManager = (() => {
     const idCell = document.createElement('td');
     idCell.textContent = record.id;
     idCell.title = record.content;
+    idCell.dataset.label = '#';
     tr.appendChild(idCell);
 
-    getActiveColumnDefinitions().forEach(({ key: field }) => {
+    getActiveColumnDefinitions().forEach(({ key: field, label }) => {
       const td = document.createElement('td');
       td.className = 'td-editable';
       td.contentEditable = 'true';
       td.spellcheck = false;
       td.dataset.field = field;
+      td.dataset.label = label;
       td.title = 'Click to edit';
 
       let currentValue = record[field];
@@ -979,6 +1039,7 @@ const UIManager = (() => {
     typeBadge.className = `type-badge ${typeClass}`;
     typeBadge.textContent = record.type || 'Text';
     typeTd.appendChild(typeBadge);
+    typeTd.dataset.label = 'Typ kodu';
     tr.appendChild(typeTd);
 
     const actionTd = document.createElement('td');
@@ -997,6 +1058,7 @@ const UIManager = (() => {
       setTimeout(() => { tr.remove(); onDelete(record.id); }, 250);
     });
     actionTd.appendChild(delBtn);
+    actionTd.dataset.label = 'Akcja';
     tr.appendChild(actionTd);
 
     els.tableBody.appendChild(tr);
@@ -1007,7 +1069,9 @@ const UIManager = (() => {
     const empty = count === 0;
     els.resultsEmpty.style.display = empty ? '' : 'none';
     els.resultsTable.style.display = empty ? 'none' : '';
-    els.entryCount.textContent     = `${count} entr${count === 1 ? 'y' : 'ies'}`;
+    const remainder = count % 10;
+    const word = count === 1 ? 'pozycja' : (remainder >= 2 && remainder <= 4 && (count % 100 < 12 || count % 100 > 14) ? 'pozycje' : 'pozycji');
+    els.entryCount.textContent = `${count} ${word}`;
   }
 
     // ── Feedback (chime + vibration) ─────────────────────────────────────
@@ -1162,9 +1226,92 @@ const App = (() => {
       (id) => {
         DataStore.remove(id);
         refreshTableVisibility(DataStore.count());
+        renderRecentRecords();
       },
-      (id, field, value) => DataStore.update(id, field, value)
+      (id, field, value) => { DataStore.update(id, field, value); renderRecentRecords(); }
     );
+  }
+
+  function renderRecentRecords() {
+    if (!els.recentRecordList || !els.recentRecordsPanel) return;
+    const records = DataStore.getAll();
+    els.recentRecordList.replaceChildren();
+    if (!records.length) {
+      els.recentRecordsPanel.classList.add('hidden');
+      return;
+    }
+    const recent = records.slice(-4).reverse();
+    els.recentCount.textContent = String(records.length);
+    recent.forEach((record) => {
+      const card = document.createElement('article');
+      card.className = 'recent-record';
+      const top = document.createElement('div');
+      top.className = 'recent-record-top';
+      const person = document.createElement('strong');
+      person.textContent = [record.firstName, record.lastName].filter(Boolean).join(' ') || 'Bez przypisanej osoby';
+      const equipment = document.createElement('span');
+      equipment.className = 'recent-equipment';
+      equipment.textContent = record.categoryName || 'Sprzęt';
+      top.append(person, equipment);
+
+      const serial = document.createElement('div');
+      serial.className = 'recent-serial';
+      serial.textContent = record.serialNumber || record.content || 'Brak SN';
+
+      const details = document.createElement('div');
+      details.className = 'recent-extra-fields';
+      getActiveColumnDefinitions()
+        .filter((def) => !['firstName', 'lastName', 'categoryName', 'serialNumber'].includes(def.key) && record[def.key])
+        .forEach((def) => {
+          const line = document.createElement('span');
+          line.textContent = `${def.label}: ${record[def.key]}`;
+          details.appendChild(line);
+        });
+
+      const footer = document.createElement('div');
+      footer.className = 'recent-record-footer';
+      const kind = document.createElement('span');
+      kind.textContent = record.type === 'Wpis ręczny' ? 'Wpis ręczny' : (record.type === 'Barcode' ? 'Kod kreskowy' : 'QR');
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'recent-edit-link';
+      edit.textContent = 'Edytuj';
+      edit.addEventListener('click', () => {
+        const row = els.tableBody.querySelector(`tr[data-id="${record.id}"]`);
+        document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.setTimeout(() => row?.querySelector('.td-editable')?.focus(), 350);
+      });
+      footer.append(kind, edit);
+      card.append(top, serial);
+      if (details.childElementCount) card.append(details);
+      card.append(footer);
+      els.recentRecordList.appendChild(card);
+    });
+    els.recentRecordsPanel.classList.remove('hidden');
+  }
+
+  function updateCameraControls(capabilities = QRScanner.getControls()) {
+    if (!els.cameraTools) return;
+    els.torchBtn.classList.toggle('hidden', !capabilities.torch);
+    els.torchBtn.disabled = !capabilities.torch;
+    els.torchBtn.textContent = capabilities.torch
+      ? (capabilities.torchEnabled ? 'Wyłącz latarkę' : 'Włącz latarkę')
+      : 'Latarka niedostępna';
+    if (capabilities.zoom) {
+      els.zoomSlider.min = String(capabilities.zoom.min);
+      els.zoomSlider.max = String(capabilities.zoom.max);
+      els.zoomSlider.step = String(capabilities.zoom.step);
+      els.zoomSlider.value = String(capabilities.zoom.value);
+      els.zoomValue.textContent = `${Number(capabilities.zoom.value).toFixed(1)}×`;
+      els.zoomControl.classList.remove('hidden');
+    } else {
+      els.zoomControl.classList.add('hidden');
+    }
+    els.cameraTools.classList.toggle('hidden', !capabilities.torch && !capabilities.zoom);
+  }
+
+  function hideCameraControls() {
+    els.cameraTools?.classList.add('hidden');
   }
 
   function renderAllRows() {
@@ -1172,6 +1319,7 @@ const App = (() => {
     els.tableBody.replaceChildren();
     DataStore.getAll().forEach(appendRecordRow);
     refreshTableVisibility(DataStore.count());
+    renderRecentRecords();
   }
 
   async function saveColumnConfiguration() {
@@ -1278,9 +1426,28 @@ const App = (() => {
     document.getElementById('lastNameInput').value = '';
     document.getElementById('equipmentType').value = '';
     els.manualSerialNumber.value = '';
-    setStatus('', 'Ready');
+    hideCameraControls();
+    setStatus('', 'Gotowy');
     document.getElementById('firstNameInput').focus();
     showToast('Formularz wyczyszczony. Zapisane pozycje pozostały w spisie.', 'info');
+  });
+
+  els.showAllRecordsBtn?.addEventListener('click', () => document.getElementById('resultsCard').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  els.torchBtn?.addEventListener('click', async () => {
+    try {
+      await QRScanner.setTorch(!QRScanner.getControls().torchEnabled);
+      updateCameraControls(QRScanner.getControls());
+    } catch (error) {
+      showToast('Nie udało się włączyć latarki w tym aparacie.', 'error');
+    }
+  });
+  els.zoomSlider?.addEventListener('change', async () => {
+    try {
+      await QRScanner.setZoom(els.zoomSlider.value);
+      els.zoomValue.textContent = `${Number(els.zoomSlider.value).toFixed(1)}×`;
+    } catch (error) {
+      showToast('Ten aparat nie pozwala zmienić przybliżenia.', 'error');
+    }
   });
 
   if (els.themeToggle) {
@@ -1301,7 +1468,7 @@ const App = (() => {
 
     lastDuplicateAlert = { text, ts: now };
     triggerScanFlash();
-    showToast('Already scanned — this code is already in your list.', 'duplicate', 2800);
+    showToast('Ten numer jest już na liście.', 'duplicate', 2800);
   }
 
 
@@ -1327,15 +1494,16 @@ const App = (() => {
 
     appendRecordRow(record);
     refreshTableVisibility(DataStore.count());
+    renderRecentRecords();
 
     setStatus('success', `${sourceFormat || 'Kod'}: ${text.slice(0, 40)}${text.length > 40 ? '…' : ''}`);
-    showToast(`${sourceFormat === 'Wpis ręczny' ? 'Dodano SN' : `Zeskanowano ${sourceFormat || 'kod'}`}: ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`, 'success');
+    showToast(`${sourceFormat === 'Wpis ręczny' ? 'Dodano SN' : `Odczytano ${sourceFormat === 'Barcode' ? 'kod kreskowy' : (sourceFormat || 'kod')}`}: ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}`, 'success');
 
     // Briefly flash the status back to scanning after 2s if in camera mode
     if (els.tabCameraMode.classList.contains('active') && els.startBtn.disabled) {
-      setTimeout(() => setStatus('scanning', 'Scanning…'), 2000);
+      setTimeout(() => setStatus('scanning', 'Skanowanie aktywne'), 2000);
     } else {
-      setTimeout(() => setStatus('', 'Ready'), 2000);
+      setTimeout(() => setStatus('', 'Gotowy'), 2000);
     }
 
     return record;
@@ -1356,18 +1524,20 @@ const App = (() => {
         // of fighting a stale one.
         wasScanningBeforeBackground = true;
         QRScanner.stop();
+        hideCameraControls();
         showCamera(false);
         setButtonState(false);
         setStatus('', 'Paused');
       }
     } else if (document.visibilityState === 'visible' && wasScanningBeforeBackground) {
       wasScanningBeforeBackground = false;
-      setStatus('scanning', 'Resuming camera…');
+      setStatus('scanning', 'Wznawiam aparat…');
       QRScanner.start(handleDecode)
-        .then(() => {
+        .then((controls) => {
+          updateCameraControls(controls);
           showCamera(true);
           setButtonState(true);
-          setStatus('scanning', 'Scanning…');
+          setStatus('scanning', 'Skanowanie aktywne');
         })
         .catch((err) => {
           setStatus('error', err.message);
@@ -1380,12 +1550,13 @@ const App = (() => {
   if (els.grantAccessBtn) {
     els.grantAccessBtn.addEventListener('click', async () => {
       hidePermissionModal();
-      setStatus('scanning', 'Starting camera…');
+      setStatus('scanning', 'Uruchamiam aparat…');
       try {
-        await QRScanner.start(handleDecode);
+        const controls = await QRScanner.start(handleDecode);
+        updateCameraControls(controls);
         showCamera(true);
         setButtonState(true);
-        setStatus('scanning', 'Scanning…');
+        setStatus('scanning', 'Skanowanie aktywne');
       } catch (err) {
         setStatus('error', err.message);
         showToast(err.message, 'error', 5000);
@@ -1403,26 +1574,28 @@ const App = (() => {
   // ── Tab Switching ──────────────────────────────────────────────────
   els.tabCameraMode.addEventListener('click', () => {
     switchTab('camera');
-    setStatus('', 'Ready');
+    setStatus('', 'Gotowy');
   });
 
   els.tabGalleryMode.addEventListener('click', () => {
     // Stop camera stream if active
     QRScanner.stop();
+    hideCameraControls();
     showCamera(false);
     setButtonState(false);
     switchTab('gallery');
-    setStatus('', 'Ready');
+    setStatus('', 'Gotowy');
   });
 
   // ── Start Camera ───────────────────────────────────────────────────
   els.startBtn.addEventListener('click', async () => {
-    setStatus('scanning', 'Starting camera…');
+    setStatus('scanning', 'Uruchamiam aparat…');
     try {
-      await QRScanner.start(handleDecode);
+      const controls = await QRScanner.start(handleDecode);
+      updateCameraControls(controls);
       showCamera(true);
       setButtonState(true);
-      setStatus('scanning', 'Scanning…');
+      setStatus('scanning', 'Skanowanie aktywne');
     } catch (err) {
       setStatus('error', err.message);
       showToast(err.message, 'error', 5000);
@@ -1434,7 +1607,8 @@ const App = (() => {
     QRScanner.stop();
     showCamera(false);
     setButtonState(false);
-    setStatus('', 'Ready');
+    hideCameraControls();
+    setStatus('', 'Gotowy');
   });
 
   // ── Upload Image Events & Drag-and-Drop ────────────────────────────
@@ -1463,7 +1637,7 @@ const App = (() => {
             setStatus('success', sourceFormat === 'Barcode' ? 'Barcode read from image.' : 'QR code read from image.');
             showToast(sourceFormat === 'Barcode' ? 'Barcode read successfully!' : 'QR code read successfully!', 'success');
           } else {
-            setStatus('', 'Ready');
+            setStatus('', 'Gotowy');
           }
         },
         (errMsg) => {
@@ -1513,7 +1687,7 @@ const App = (() => {
   // Clear photo preview
   els.removePhotoBtn.addEventListener('click', () => {
     clearGalleryPreview();
-    setStatus('', 'Ready');
+    setStatus('', 'Gotowy');
   });
 
   // ── Clear All ──────────────────────────────────────────────────────
@@ -1521,7 +1695,8 @@ const App = (() => {
     DataStore.clear();
     els.tableBody.innerHTML = '';
     refreshTableVisibility(0);
-    showToast('All entries cleared.', 'info');
+    renderRecentRecords();
+    showToast('Wyczyszczono spis.', 'info');
   });
 
   // ── Export Choice Flow ─────────────────────────────────────────────
@@ -1665,7 +1840,8 @@ const App = (() => {
     restored.forEach(appendRecordRow);
 
     refreshTableVisibility(DataStore.count());
-    setStatus('', 'Ready');
+    renderRecentRecords();
+    setStatus('', 'Gotowy');
 
     if (restored.length > 0) {
       showToast(

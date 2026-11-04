@@ -42,7 +42,7 @@
               <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
               <circle cx="12" cy="13" r="4"/>
             </svg>
-            Live Camera
+            Aparat
           </button>
           <button class="tab-btn" id="tabGalleryMode">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -50,7 +50,7 @@
               <circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            Upload Photo
+            Zdjęcie
           </button>
         </div>
 
@@ -69,11 +69,11 @@
     <section class="card scanner-card" id="scannerSection">
       <div class="inventory-session-form">
         <h2>Nowy spis sprzętu</h2>
-        <p>Wpisz imię i nazwisko, wybierz sprzęt, a potem skanuj jego numer seryjny.</p>
-        <label for="firstNameInput">Imię</label>
-        <input id="firstNameInput" type="text" autocomplete="given-name" placeholder="np. Jan" />
-        <label for="lastNameInput">Nazwisko</label>
-        <input id="lastNameInput" type="text" autocomplete="family-name" placeholder="np. Kowalski" />
+        <p>Wpisz osobę i wybierz sprzęt. Potem skanuj jego numer seryjny.</p>
+        <div class="identity-fields">
+          <div class="identity-field"><label for="firstNameInput">Imię</label><input id="firstNameInput" type="text" autocomplete="given-name" placeholder="np. Jan" /></div>
+          <div class="identity-field"><label for="lastNameInput">Nazwisko</label><input id="lastNameInput" type="text" autocomplete="family-name" placeholder="np. Kowalski" /></div>
+        </div>
         <label for="equipmentType">Wybór sprzętu</label>
         <select id="equipmentType">
           <option value="">Wybierz rodzaj sprzętu</option>
@@ -84,7 +84,7 @@
           <option>Drukarka</option>
           <option>Inne</option>
         </select>
-        <button class="btn btn-sm" id="newEmployeeBtn" type="button">Nowy pracownik / wyczyść formularz</button>
+        <button class="btn btn-sm new-person-btn" id="newEmployeeBtn" type="button">Nowa osoba · wyczyść formularz</button>
         <label for="manualSerialNumber">Numer seryjny (wpis ręczny, jeśli skan nie działa)</label>
         <div class="custom-column-controls">
           <input id="manualSerialNumber" type="text" autocomplete="off" placeholder="Wpisz SN" />
@@ -106,11 +106,11 @@
       <div class="card-header-bar">
         <div class="card-label">
           <span class="label-indicator"></span>
-          <span id="modeLabelText">Live Camera Viewport</span>
+          <span id="modeLabelText">Podgląd aparatu</span>
         </div>
         <div class="status-badge" id="statusBadge">
           <span class="status-dot" id="statusDot"></span>
-          <span id="statusText">Ready</span>
+          <span id="statusText">Gotowy</span>
         </div>
       </div>
 
@@ -124,7 +124,7 @@
           <div class="reticle-corner br"></div>
           <div class="target-crosshair"></div>
           <div class="scan-laser" id="scanLaser"></div>
-          <div class="target-hint">Align within center box</div>
+          <div class="target-hint">Ustaw kod w środku i przytrzymaj telefon stabilnie</div>
         </div>
 
         <div class="scan-flash" id="scanFlash"></div>
@@ -141,8 +141,8 @@
              <circle cx="12" cy="13" r="4"/>
            </svg>
        </div>
-          <h3>Camera Idle</h3>
-          <p>Click start to activate camera</p>
+          <h3>Aparat wyłączony</h3>
+          <p>Naciśnij „Uruchom skaner”, aby rozpocząć</p>
          </div>
        </div>
       </div>
@@ -162,10 +162,10 @@
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
             </div>
-            <h3>Drop Photo Here or Browse</h3>
-            <p>Supports PNG, JPG, WEBP, or GIF with QR codes</p>
+            <h3>Wybierz zdjęcie z kodem</h3>
+            <p>Możesz wskazać zdjęcie QR lub kodu kreskowego.</p>
             <button class="btn btn-secondary" id="browseGalleryBtn">
-              Select Image File
+              Wybierz zdjęcie
             </button>
           </div>
 
@@ -173,28 +173,38 @@
           <div class="gallery-preview-wrapper hidden" id="galleryPreviewWrapper">
             <img id="galleryPreviewImg" alt="QR Preview" />
             <button class="btn btn-sm btn-ghost remove-photo-btn" id="removePhotoBtn" title="Remove photo">
-              ✕ Clear Photo
+              ✕ Usuń zdjęcie
             </button>
           </div>
         </div>
       </div>
 
       <!--- CONTROLS BAR --->
+      <div class="camera-tools hidden" id="cameraTools">
+        <button class="btn btn-ghost" id="torchBtn" type="button" disabled aria-label="Włącz latarkę">Latarka niedostępna</button>
+        <label class="zoom-control hidden" id="zoomControl" for="zoomSlider"><span>Przybliżenie</span><input id="zoomSlider" type="range" min="1" max="1" step="0.1" value="1" /><output id="zoomValue">1×</output></label>
+      </div>
       <div class="scanner-controls">
         <button class="btn btn-primary" id="startBtn">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          Start Camera
+          Uruchom skaner
         </button>
         <button class="btn btn-ghost" id="stopBtn" disabled>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="6" y="4" width="4" height="16"/>
             <rect x="14" y="4" width="4" height="16"/>
           </svg>
-          Stop Camera
+          Zatrzymaj skanowanie
         </button>
       </div>
+
+      <section class="recent-records hidden" id="recentRecordsPanel" aria-live="polite">
+        <div class="recent-records-heading"><div><h3>Ostatnio dodane</h3><p>Sprawdź od razu, co zostało zapisane.</p></div><span class="recent-count" id="recentCount">0</span></div>
+        <div class="recent-record-list" id="recentRecordList"></div>
+        <button class="btn btn-sm recent-all-btn" id="showAllRecordsBtn" type="button">Pokaż i edytuj cały spis</button>
+      </section>
 
     </section>
 
@@ -203,7 +213,7 @@
     <!-- ─── RESULTS STUDIO CARD ─────────────────────────────────── -->
     <section class="card results-card" id="resultsCard">
       <div class="card-header-bar">
-        <div class="card-label">Scan History</div>
+        <div class="card-label">Wprowadzony sprzęt</div>
         <span class="badge-count" id="entryCount">0 entries</span>
       </div>
 
@@ -216,19 +226,19 @@
             <path d="M14 14l7 7M21 14l-7 7"/>
           </svg>
         </div>
-        <p>No QR codes scanned in this session</p>
-        <small>Align a QR code in the viewport or upload an image to record data.</small>
+        <p>Nie dodano jeszcze sprzętu</p>
+        <small>Uzupełnij osobę i sprzęt, a potem zeskanuj kod lub wpisz SN ręcznie.</small>
       </div>
 
       <div id="resultsTable" style="display:none;">
         <div class="table-toolbar">
-          <span class="toolbar-info">Click any field to edit it</span>
+          <span class="toolbar-info">Dotknij pola, aby je edytować</span>
           <button class="btn btn-sm btn-danger" id="clearAllBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="3 6 5 6 21 6"/>
               <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
             </svg>
-            Clear History
+            Wyczyść spis
           </button>
         </div>
         <div class="table-scroll">

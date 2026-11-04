@@ -1,43 +1,52 @@
 # Inwentaryzacja QR — spis sprzętu na Androidzie
 
-Aplikacja Android do inwentaryzacji wyposażenia przypisanego do pracowników. Formularz zawiera podstawowe pola: imię, nazwisko, wybór sprzętu i numer seryjny (SN).
+Aplikacja Android do ewidencji urządzeń przypisanych do pracowników. Zbiera imię, nazwisko, rodzaj sprzętu i numer seryjny (SN), odczytywany z kodu QR lub kreskowego.
 
-## Spis i skanowanie
+## Jak działa spis
 
 1. Wpisz imię i nazwisko pracownika.
-2. Wybierz sprzęt, np. komputer albo monitor.
-3. Zeskanuj QR lub kod kreskowy z numerem seryjnym.
-4. Jeśli skanowanie nie zadziała, wpisz SN ręcznie i wybierz **Dodaj ręcznie**.
-5. Skanuj kolejne urządzenia tej samej osoby.
-6. Po przejściu do kolejnego pracownika wybierz **Nowy pracownik / wyczyść formularz**. Czyści pola formularza, ale zachowuje już zapisane pozycje.
+2. Wybierz rodzaj urządzenia.
+3. Zeskanuj kod QR albo kreskowy z numerem seryjnym.
+4. Jeśli aparat nie odczyta kodu, wpisz SN ręcznie i wybierz **Dodaj ręcznie**.
+5. Skanuj następne urządzenia tej samej osoby.
+6. Przy kolejnym pracowniku użyj **Nowa osoba · wyczyść formularz**. Dotychczasowe wpisy zostaną zachowane.
 
-Aplikacja zapisuje typ odczytu na końcu tabeli: QR, kod kreskowy albo wpis ręczny. Wpisy można edytować bezpośrednio w tabeli. Dane są przechowywane lokalnie na telefonie.
+Dane są przechowywane lokalnie na telefonie. Duplikaty SN są blokowane, a wpisy można edytować lub usunąć.
+
+## Wygodniejsza praca na telefonie
+
+Po skanie pod aparatem pojawiają się cztery ostatnie wpisy z osobą, sprzętem i numerem SN. Pełny spis na małym ekranie wyświetla pozycje jako pionowe karty z nazwami pól, bez poziomego przewijania tabeli. Karta skrótu pozwala przejść do edycji wpisu.
+
+Skaner prosi o wyższą rozdzielczość i ciągłe ustawianie ostrości. Sprawdza QR i kody kreskowe naprzemiennie, by ograniczyć obciążenie telefonu. Latarka i przybliżenie są dostępne, gdy obsługuje je aparat.
 
 ## Własne kolumny
 
-Przed skanowaniem możesz dodać własne kolumny i nazwać je według potrzeb, np. „Service Tag”, „Lokalizacja” albo „Uwagi”. Pojawią się w tabeli i eksporcie; wartości dla urządzeń uzupełnisz, edytując ich komórki. Można je pokazywać lub ukrywać bez kasowania danych.
+Możesz nazwać dodatkowe kolumny, np. „Service Tag”, „Lokalizacja” lub „Uwagi”. Są dostępne w spisie i eksporcie. Ich wartości uzupełnia się w edycji rekordu.
 
-## CSV i Excel
+## Eksport
 
-Eksport CSV oraz XLSX zawiera cztery podstawowe pola, aktywne własne kolumny oraz typ kodu. W polskim Excelu CSV można zaimportować przez **Dane → Z tekstu/CSV**, wybierając UTF-8 i separator przecinek.
+Dostępne są CSV oraz XLSX. Pliki zawierają podstawowe dane i aktywne własne kolumny. W Excelu CSV można wczytać przez **Dane → Z tekstu/CSV**, wybierając UTF-8 i separator przecinek.
 
-## Podgląd interfejsu
+## Pobieranie
 
-Podglądy w folderze `screenshots/` są makietami interfejsu, nie zrzutami z uruchomionego urządzenia.
+- [Testowy APK Android](apk/spis-sprzetu-ergonomia.apk)
+- [Pakiet źródeł Android Studio](source/spis-sprzetu-zrodla-android.zip)
 
-## Projekt i budowanie APK
+APK jest podpisany testowym kluczem debug. Skanowanie pięciu kodów Code 128 zweryfikowano w dekoderze. Aparatu nie testowano na fizycznym telefonie.
 
-Kompletny projekt Android Studio i źródła można pobrać jako [pakiet źródłowy](source/spis-sprzetu-zrodla-android.zip).
+## Podgląd
 
-Wymagania: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
+Pliki w `screenshots/` są makietami interfejsu, nie zrzutami z uruchomionego urządzenia.
+
+## Budowanie aplikacji
+
+Wymagane: Android Studio, Android SDK 36, JDK 21 oraz Node.js 22 lub nowszy.
 
 1. Uruchom `npm install`.
-2. Wykonaj `npx cap sync android`.
-3. W katalogu `android` uruchom `gradlew.bat assembleDebug`.
+2. Uruchom `npx cap sync android`.
+3. W folderze `android` wykonaj `gradlew.bat assembleDebug`.
 4. APK znajdziesz w `android/app/build/outputs/apk/debug/app-debug.apk`.
 
-Manifest deklaruje uprawnienie do aparatu. APK 1.1 zbudował się poprawnie przez Gradle. Nie wykonano testu skanowania na fizycznym telefonie ani emulatorze.
+## Licencja
 
-## Licencja i pochodzenie
-
-Projekt jest udostępniany na licencji MIT (plik [LICENSE](LICENSE)). Aplikacja bazuje na [AssetSnap IT Lens](https://github.com/conductorhythmn/android-it-inventory-scanner), również na licencji MIT, z dodanym przepływem spisu sprzętu przypisanego do użytkownika.
+MIT — zobacz [LICENSE](LICENSE). Projekt bazuje na [AssetSnap IT Lens](https://github.com/conductorhythmn/android-it-inventory-scanner), również na licencji MIT.
